@@ -1,5 +1,5 @@
-function verdantAuth() {
-    return {
+document.addEventListener('alpine:init', () => {
+    Alpine.data('verdantAuth', () => ({
         userEmail: '',
         verificationCode: '',
         step: 'email',
@@ -13,13 +13,13 @@ function verdantAuth() {
         ],
 
         init() {
-            // Live production keys linked directly to your dashboard
+            // Secure connection to your Supabase instance database
             this.supabaseClient = supabase.createClient(
                 'https://supabase.co', 
                 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6cGNqc2F1cmpkeWxmZGxub3d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODEwNzQsImV4cCI6MjEwODM1NzA3NH0.J2AZ2cKLc-Vl1R_DDyIXOCeWRyaUi1SEyHaG7MfcF2M'
             );
             
-            // Automatically log in active user sessions
+            // Check if user session cookie is already initialized
             this.supabaseClient.auth.getSession().then(({ data }) => {
                 if (data && data.session) { this.step = 'feed'; }
             });
@@ -75,5 +75,5 @@ function verdantAuth() {
             this.step = 'email';
             location.reload();
         }
-    }
-}
+    }));
+});
