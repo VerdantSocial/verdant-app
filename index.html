@@ -4,24 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Verdant</title>
-
-  <script>
-    window.VERDANT_STAFF_PASSCODE = "verdantadmin";
-  </script>
-
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.4.1/dist/cdn.min.js"></script>
   <script defer src="app.js"></script>
-
   <style>
     :root {
-      --bg: #09090b;
-      --panel: #111827;
-      --panel-alt: #1a1f2e;
-      --border: #374151;
-      --text: #f5f5f5;
-      --muted: #9ca3af;
-      --accent: #34d399;
-      --accent-strong: #10b981;
+      --bg: #050505;
+      --panel: #0d0f0d;
+      --panel-alt: #121812;
+      --panel-strong: #0f130f;
+      --border: #1d2a1d;
+      --text: #edf7ee;
+      --muted: #8ba28f;
+      --accent: #4ade80;
+      --accent-strong: #22c55e;
+      --accent-soft: rgba(74, 222, 128, 0.12);
       --danger: #f87171;
     }
 
@@ -29,117 +25,201 @@
 
     html, body {
       margin: 0;
-      height: 100%;
+      min-height: 100%;
       background: var(--bg);
       color: var(--text);
-      font-family: Arial, sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     body {
       display: flex;
       justify-content: center;
       padding: 32px 16px;
-      background: radial-gradient(circle at top, rgba(16,185,129,0.18), transparent 35%), var(--bg);
+      background:
+        radial-gradient(circle at top, rgba(74, 222, 128, 0.09), transparent 34%),
+        var(--bg);
     }
 
-    .shell {
-      width: min(980px, 100%);
+    .page {
+      width: min(960px, 100%);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     }
 
     .topbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 20px;
+      gap: 12px;
       padding: 18px 22px;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      background: var(--panel);
+      margin-bottom: 18px;
     }
 
-    h1 {
+    .brand {
       margin: 0;
-      color: var(--accent);
       font-size: clamp(2rem, 4vw, 3rem);
+      color: var(--accent);
+      letter-spacing: -0.06em;
     }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 8px 12px;
+    .pill {
+      padding: 9px 12px;
       border-radius: 999px;
-      background: rgba(52, 211, 153, 0.12);
-      color: #a7f3d0;
-      border: 1px solid rgba(52, 211, 153, 0.25);
-      font-weight: bold;
-      font-size: 12px;
+      border: 1px solid rgba(74, 222, 128, 0.25);
+      background: rgba(74, 222, 128, 0.08);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
-    .composer,
-    .leaf,
-    .reply-box {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 20px;
+    .signup-panel,
+    .feed-panel {
+      padding: 22px;
     }
 
-    .composer {
-      padding: 18px;
-      margin-bottom: 20px;
+    .stack {
+      display: grid;
+      gap: 16px;
     }
 
-    .composer textarea {
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    input, textarea {
       width: 100%;
-      min-height: 96px;
-      resize: vertical;
-      padding: 14px 16px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background: #0b1120;
+      background: #0a100b;
       color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
       font: inherit;
       outline: none;
+      resize: vertical;
     }
 
-    .composer-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-top: 12px;
+    textarea {
+      min-height: 100px;
     }
 
-    .meta {
-      color: var(--muted);
-      font-size: 12px;
+    input:focus, textarea:focus {
+      border-color: rgba(74, 222, 128, 0.6);
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.08);
     }
 
     button {
-      border: 0;
+      appearance: none;
+      border: none;
       border-radius: 12px;
-      padding: 10px 16px;
-      font-weight: bold;
       cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      transition: transform 0.12s ease, opacity 0.12s ease;
     }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
 
     .primary {
       background: var(--accent);
-      color: #062d1d;
+      color: #051008;
+      padding: 12px 18px;
     }
 
-    .ghost {
+    .secondary {
       background: transparent;
-      color: var(--text);
       border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 18px;
     }
 
-    .leaf-list {
+    .danger {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      color: #fecaca;
+      padding: 12px 18px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .error {
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.25);
+      color: #fecaca;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 12px;
+    }
+
+    .profile-preview {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(74, 222, 128, 0.03);
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(74, 222, 128, 0.35);
+      background: #0a100b;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .composer {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .composer textarea {
+      min-height: 90px;
+    }
+
+    .leafs {
       display: grid;
-      gap: 18px;
+      gap: 16px;
     }
 
     .leaf {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
       padding: 18px;
     }
 
@@ -154,7 +234,7 @@
     .userline {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
@@ -167,70 +247,59 @@
       font-size: 12px;
     }
 
-    .time {
-      color: var(--muted);
+    .timestamp {
       font-size: 11px;
+      color: var(--muted);
     }
 
-    .leaf-content {
-      margin: 12px 0;
+    .leaf-body {
+      color: var(--text);
       line-height: 1.6;
       white-space: pre-wrap;
-      color: #f3f4f6;
+      margin: 12px 0 14px;
     }
 
-    .leaf-actions {
+    .info-row {
       display: flex;
-      gap: 12px;
-      margin-top: 10px;
-      color: var(--muted);
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
       font-size: 12px;
+      color: var(--muted);
     }
 
-    .leaf-actions button {
-      padding: 6px 10px;
-      font-size: 12px;
-      background: transparent;
-      color: var(--text);
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(74, 222, 128, 0.04);
+      color: var(--text);
     }
 
     .reply-box {
-      margin-top: 14px;
-      padding: 14px;
+      margin-top: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
     }
 
     .reply-box textarea {
-      width: 100%;
-      min-height: 70px;
-      resize: vertical;
-      border: 1px solid var(--border);
-      background: #0b1120;
-      color: var(--text);
-      border-radius: 12px;
-      padding: 12px;
-      font: inherit;
-      outline: none;
+      min-height: 72px;
     }
 
-    .reply-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .replies {
-      margin-top: 14px;
+    .reply-list {
+      margin-top: 12px;
       display: grid;
       gap: 10px;
     }
 
     .reply {
-      background: #0b1120;
       border: 1px solid var(--border);
+      background: rgba(74, 222, 128, 0.02);
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 12px;
     }
 
     .reply-head {
@@ -239,74 +308,174 @@
       gap: 8px;
       margin-bottom: 6px;
       font-size: 12px;
+      color: var(--muted);
     }
 
-    .reply-content {
-      color: #e5e7eb;
-      white-space: pre-wrap;
+    .reply-body {
+      color: var(--text);
       line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 20px 12px; }
+      .topbar, .header-row, .row { align-items: flex-start; }
+      .row { flex-direction: column; }
+      .primary, .secondary, .danger { width: 100%; }
     }
   </style>
 </head>
-<body x-data="verdantFeed">
-  <div class="shell">
-    <div class="topbar">
-      <h1>Verdant</h1>
-      <div class="badge">St. Jude awareness feed</div>
+<body x-data="verdantApp">
+  <div class="page">
+    <div class="topbar panel">
+      <h1 class="brand">Verdant</h1>
+      <div class="pill">Text Network</div>
     </div>
 
-    <div class="composer">
-      <textarea x-model="leafText" placeholder="Write a leaf..."></textarea>
-      <div class="composer-row">
-        <div class="meta" x-text="(characterLimit - leafText.length) + ' characters remaining'"></div>
-        <button class="primary" @click="publishLeaf()">Post leaf</button>
+    <template x-if="step === 'signup'">
+      <div class="signup-panel panel stack">
+        <div>
+          <h2 style="margin:0 0 8px; font-size: clamp(1.6rem, 3vw, 2.4rem);">Create your account</h2>
+          <p style="margin:0; color: var(--muted);">Set up your profile and start posting.</p>
+        </div>
+
+        <div class="field">
+          <label>Username</label>
+          <input x-model="form.username" type="text" placeholder="yourname" />
+        </div>
+
+        <div class="field">
+          <label>Email</label>
+          <input x-model="form.email" type="email" placeholder="you@example.com" />
+        </div>
+
+        <div class="field">
+          <label>Password</label>
+          <input x-model="form.password" type="password" placeholder="Choose a password" />
+        </div>
+
+        <template x-if="errorMessage">
+          <div class="error" x-text="errorMessage"></div>
+        </template>
+
+        <div class="row">
+          <div></div>
+          <button class="primary" @click="createAccount()">Continue</button>
+        </div>
       </div>
-    </div>
+    </template>
 
-    <div class="leaf-list">
-      <template x-for="leaf in leafs" :key="leaf.id">
-        <article class="leaf">
-          <div class="leaf-head">
-            <div class="userline">
-              <div class="display-name" x-text="leaf.displayName"></div>
-              <div class="username">@<span x-text="leaf.username"></span></div>
+    <template x-if="step === 'profile'">
+      <div class="signup-panel panel stack">
+        <div>
+          <h2 style="margin:0 0 8px; font-size: clamp(1.6rem, 3vw, 2.4rem);">Finish your profile</h2>
+          <p style="margin:0; color: var(--muted);">Add a bio and choose a profile picture.</p>
+        </div>
+
+        <div class="profile-preview">
+          <img class="avatar" :src="profilePreviewUrl" alt="Profile preview" />
+          <div>
+            <div class="display-name" x-text="form.username || 'yourname'"></div>
+            <div class="username" x-text="form.email || 'you@example.com'"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Bio</label>
+          <textarea x-model="form.bio" placeholder="Tell people a little about you..."></textarea>
+        </div>
+
+        <div class="field">
+          <label>Profile picture URL</label>
+          <input x-model="form.pfpUrl" type="url" placeholder="https://example.com/avatar.jpg" />
+        </div>
+
+        <template x-if="errorMessage">
+          <div class="error" x-text="errorMessage"></div>
+        </template>
+
+        <div class="row">
+          <button class="secondary" @click="step = 'signup'">Back</button>
+          <button class="primary" @click="finishProfile()">Create profile</button>
+        </div>
+      </div>
+    </template>
+
+    <template x-if="step === 'feed'">
+      <div class="feed-panel">
+        <div class="header-row">
+          <div class="userline">
+            <img class="avatar" :src="currentUserAvatar" alt="Profile" />
+            <div>
+              <div class="display-name" x-text="currentUser.displayName"></div>
+              <div class="username">@<span x-text="currentUser.username"></span></div>
             </div>
-            <div class="time" x-text="leaf.timestamp"></div>
           </div>
+          <button class="danger" @click="logoutUser()">Log out</button>
+        </div>
 
-          <div class="leaf-content" x-text="leaf.content"></div>
-
-          <div class="leaf-actions">
-            <button @click="toggleLike(leaf.id)">❤️ <span x-text="leaf.likes || 0"></span></button>
-            <button @click="replyingTo = (replyingTo === leaf.id ? null : leaf.id)">💬 <span x-text="(leaf.replies || []).length"></span></button>
+        <div class="composer">
+          <textarea x-model="leafText" maxlength="350" placeholder="Write a leaf..."></textarea>
+          <div class="row" style="margin-top: 12px;">
+            <div class="timestamp" x-text="(characterLimit - leafText.length) + ' characters remaining'"></div>
+            <button class="primary" @click="publishLeaf()">Post</button>
           </div>
+        </div>
 
-          <template x-if="replyingTo === leaf.id">
-            <div class="reply-box">
-              <textarea x-model="replyText" placeholder="Write a reply..."></textarea>
-              <div class="reply-actions">
-                <button class="ghost" @click="replyingTo = null">Cancel</button>
-                <button class="primary" @click="publishReply(leaf.id)">Reply</button>
+        <div class="leafs">
+          <template x-for="leaf in leafs" :key="leaf.id">
+            <article class="leaf">
+              <div class="leaf-head">
+                <div class="userline">
+                  <div class="display-name" x-text="leaf.displayName"></div>
+                  <div class="username">@<span x-text="leaf.username"></span></div>
+                </div>
+                <div class="timestamp" x-text="leaf.timestamp"></div>
               </div>
-            </div>
-          </template>
 
-          <template x-if="leaf.replies && leaf.replies.length">
-            <div class="replies">
-              <template x-for="reply in leaf.replies" :key="reply.id">
-                <div class="reply">
-                  <div class="reply-head">
-                    <span class="display-name" x-text="reply.displayName"></span>
-                    <span class="username">@<span x-text="reply.username"></span></span>
+              <div class="leaf-body" x-text="leaf.content"></div>
+
+              <div class="info-row">
+                <div class="chip">❤️ <span x-text="leaf.likes || 0"></span></div>
+                <div class="chip">💬 <span x-text="(leaf.replies || []).length"></span></div>
+              </div>
+
+              <div class="row" style="margin-top: 12px;">
+                <button class="secondary" @click="toggleLike(leaf.id)">Like</button>
+                <button class="secondary" @click="replyingTo = (replyingTo === leaf.id ? null : leaf.id)">Reply</button>
+              </div>
+
+              <template x-if="replyingTo === leaf.id">
+                <div class="reply-box">
+                  <textarea x-model="replyText" placeholder="Write a reply..."></textarea>
+                  <div class="row" style="margin-top: 12px;">
+                    <div></div>
+                    <div style="display:flex; gap:10px;">
+                      <button class="secondary" @click="replyingTo = null">Cancel</button>
+                      <button class="primary" @click="publishReply(leaf.id)">Send</button>
+                    </div>
                   </div>
-                  <div class="reply-content" x-text="reply.content"></div>
                 </div>
               </template>
-            </div>
+
+              <template x-if="leaf.replies && leaf.replies.length">
+                <div class="reply-list">
+                  <template x-for="reply in leaf.replies" :key="reply.id">
+                    <div class="reply">
+                      <div class="reply-head">
+                        <span class="display-name" x-text="reply.displayName"></span>
+                        <span>@<span x-text="reply.username"></span></span>
+                      </div>
+                      <div class="reply-body" x-text="reply.content"></div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </article>
           </template>
-        </article>
-      </template>
-    </div>
+        </div>
+      </div>
+    </template>
   </div>
 </body>
 </html>
