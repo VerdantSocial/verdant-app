@@ -13,32 +13,49 @@ document.addEventListener('alpine:init', () => {
         ],
 
         init() {
-            // Secure connection to your Supabase instance database
-            this.supabaseClient = supabase.createClient(
-                'https://supabase.co', 
-                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6cGNqc2F1cmpkeWxmZGxub3d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODEwNzQsImV4cCI6MjEwODM1NzA3NH0.J2AZ2cKLc-Vl1R_DDyIXOCeWRyaUi1SEyHaG7MfcF2M'
-            );
-            
-            // Check if user session cookie is already initialized
-            this.supabaseClient.auth.getSession().then(({ data }) => {
-                if (data && data.session) { this.step = 'feed'; }
-            });
+            this.configureSupabase();
+
+            if (this.supabaseClient) {
+                this.supabaseClient.auth.getSession().then(({ data }) => {
+                    if (data && data.session) { this.step = 'feed'; }
+                });
+            }
         },
-        
+
+        configureSupabase() {
+            const url = window.VERDANT_SUPABASE_URL || '';
+            const anonKey = window.VERDANT_SUPABASE_ANON_KEY || '';
+
+            if (!url || !anonKey) {
+                this.errorMessage = 'Supabase is not configured. Set window.VERDANT_SUPABASE_URL and window.VERDANT_SUPABASE_ANON_KEY before loading app.js.';
+                return;
+            }
+
+            this.supabaseClient = supabase.createClient(url, anonKey);
+        },
+
         async sendMagicCode() {
             this.errorMessage = '';
+            if (!this.supabaseClient) {
+                this.errorMessage = 'Supabase is not configured. Add your project URL and anon key.';
+                return;
+            }
             if (!this.userEmail.trim()) { this.errorMessage = 'Please type a valid email.'; return; }
-            
+
             const { data, error } = await this.supabaseClient.auth.signInWithOtp({
                 email: this.userEmail
             });
             if (error) { this.errorMessage = error.message; } else { this.step = 'verify'; }
         },
-        
+
         async confirmCode() {
             this.errorMessage = '';
+            if (!this.supabaseClient) {
+                this.errorMessage = 'Supabase is not configured. Add your project URL and anon key.';
+                return;
+            }
             if (!this.verificationCode.trim()) { this.errorMessage = 'Please enter the 6-digit code.'; return; }
-            
+
             const { data, error } = await this.supabaseClient.auth.verifyOtp({
                 email: this.userEmail,
                 token: this.verificationCode,
@@ -49,7 +66,7 @@ document.addEventListener('alpine:init', () => {
 
         publishLeaf() {
             if (this.leafText.trim() === '' || (this.characterLimit - this.leafText.length) < 0) return;
-            
+
             const newLeaf = {
                 id: Date.now(),
                 username: 'user_' + Math.floor(1000 + Math.random() * 9000),
@@ -71,9 +88,12 @@ document.addEventListener('alpine:init', () => {
         },
 
         logoutUser() {
-            this.supabaseClient.auth.signOut();
+            if (this.supabaseClient) {
+                this.supabaseClient.auth.signOut();
+            }
             this.step = 'email';
             location.reload();
         }
     }));
 });
+
