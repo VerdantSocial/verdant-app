@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verdant — Text Network</title>
+    <!-- Tailwind CSS for Dark Mode styling -->
+    <script src="https://jsdelivr.net"></script>
+    <!-- Alpine.js to handle visual app logic -->
+    <script defer src="https://jsdelivr.net"></script>
+    <!-- Supabase Browser SDK -->
+    <script src="https://jsdelivr.net"></script>
+    <!-- Link to your logic code file -->
+    <script src="app.js" defer></script>
+</head>
+<body class="min-h-screen bg-neutral-950 text-neutral-100 font-sans flex justify-center items-center p-4 selection:bg-emerald-500/30" x-data="verdantAuth()">
+
+    <!-- STEP 1: Enter Email Panel -->
+    <template x-if="step === 'email'">
+        <div class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+            <h2 class="text-xl font-bold text-emerald-400 tracking-wide mb-1">🌱 Join Verdant</h2>
+            <p class="text-xs text-neutral-500 mb-6">Enter your email to receive a 6-digit verification code.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Email Address</label>
+                    <input x-model="userEmail" type="email" placeholder="you@example.com" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 focus:border-emerald-500 transition-colors text-sm" />
+                </div>
+                <template x-if="errorMessage">
+                    <p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p>
+                </template>
+                <button @click="sendMagicCode()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg cursor-pointer">Request Code</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- STEP 2: Enter 6-Digit Code Panel -->
+    <template x-if="step === 'verify'">
+        <div class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+            <h2 class="text-xl font-bold text-emerald-400 tracking-wide mb-1">📟 Verification Token</h2>
+            <p class="text-xs text-neutral-500 mb-6" x-text="'A 6-digit code was transmitted to: ' + userEmail"></p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">6-Digit Code</label>
+                    <input x-model="verificationCode" type="text" maxlength="6" placeholder="000000" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 tracking-[0.5em] text-center font-mono outline-none text-emerald-400 focus:border-emerald-500 text-lg" />
+                </div>
+                <template x-if="errorMessage">
+                    <p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p>
+                </template>
+                <div class="flex gap-3">
+                    <button @click="step = 'email'" class="w-1/3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 rounded-xl text-sm cursor-pointer">Back</button>
+                    <button @click="confirmCode()" class="w-2/3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg cursor-pointer">Verify & Enter</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- STEP 3: Main App Interface Feed -->
+    <template x-if="step === 'feed'">
+        <div class="w-full max-w-2xl border-x border-neutral-800 min-h-screen px-4 py-6 align-top self-start">
+            <!-- Header -->
+            <header class="border-b border-neutral-800 pb-4 mb-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-wider text-emerald-400">🌱 VERDANT</h1>
+                    <p class="text-xs text-neutral-500">Secure Network Session Active</p>
+                </div>
+                <button @click="logoutUser()" class="text-xs font-mono border border-neutral-800 px-3 py-1 rounded bg-neutral-900 text-neutral-400 hover:text-red-400 cursor-pointer transition-colors">Log Out</button>
+            </header>
+
+            <!-- Composer Box -->
+            <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-4 mb-8 shadow-xl">
+                <template x-if="replyingTo">
+                    <div class="text-xs text-neutral-400 mb-2 flex justify-between items-center bg-neutral-950 px-3 py-1.5 rounded border border-neutral-800">
+                        <span x-text="'Replying to Leaf #' + replyingTo"></span>
+                        <button @click="replyingTo = null" class="text-red-400 hover:underline cursor-pointer">Cancel</button>
+                    </div>
+                </template>
+                
+                <textarea x-model="leafText" :placeholder="replyingTo ? 'Write your response leaf...' : 'Turn a new Leaf... (What\'s on your mind?)'" class="w-full bg-transparent text-neutral-200 placeholder-neutral-600 resize-none outline-none text-base h-24"></textarea>
+                
+                <div class="flex justify-between items-center border-t border-neutral-800 pt-3 mt-2">
+                    <span class="text-xs font-mono" :class="(characterLimit - leafText.length) < 0 ? 'text-red-500 font-bold' : ((characterLimit - leafText.length) <= 50 ? 'text-amber-500' : 'text-emerald-400')" x-text="(characterLimit - leafText.length) + ' / ' + characterLimit"></span>
+                    <button @click="publishLeaf()" :disabled="leafText.trim() === '' || (characterLimit - leafText.length) < 0" class="bg-emerald-500 hover:bg-emerald-400 disabled:bg-neutral-800 disabled:text-neutral-600 text-neutral-950 font-bold px-4 py-1.5 rounded-full text-sm transition-all duration-200 cursor-pointer disabled:cursor-not-allowed shadow-lg shadow-emerald-500/10" x-text="replyingTo ? 'Reply Leaf' : 'Publish Leaf'"></button>
+                </div>
+            </div>
+
+            <!-- Chronological Feed Display -->
+            <div class="space-y-4">
+                <template x-for="leaf in leafs" :key="leaf.id">
+                    <div class="bg-neutral-900/60 border border-neutral-900 hover:border-neutral-800 rounded-xl p-4 transition-all duration-150">
+                        <div class="flex items-center gap-3 mb-2">
+                            <img :src="'https://dicebear.com' + leaf.username" alt="avatar" class="w-9 h-9 rounded-lg bg-neutral-800 border border-neutral-700 p-0.5"/>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-semibold text-sm hover:underline cursor-pointer" x-text="leaf.displayName"></span>
+                                    <span class="text-xs text-neutral-500" x-text="'@' + leaf.username"></span>
+                                </div>
+                                <span class="text-[11px] font-mono text-neutral-600" x-text="leaf.timestamp"></span>
+                            </div>
+                        </div>
+                        <p class="text-neutral-300 text-[15px] leading-relaxed whitespace-pre-wrap pl-12" x-text="leaf.content"></p>
+                        <div class="mt-3 pl-12 flex items-center gap-6">
+                            <button @click="replyingTo = leaf.id" class="text-xs text-neutral-500 hover:text-emerald-400 flex items-center gap-1.5 transition-colors cursor-pointer">
+                                💬 <span class="font-mono" x-text="leaf.replies.length + ' Replies'"></span>
+                            </button>
+                        </div>
+                        <template x-if="leaf.replies.length > 0">
+                            <div class="mt-4 pl-12 border-l-2 border-neutral-800 space-y-3">
+                                <template x-for="reply in leaf.replies" :key="reply.id">
+                                    <div class="pt-2">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="font-medium text-xs text-neutral-200" x-text="'@' + reply.username"></span>
+                                            <span class="text-[10px] font-mono text-neutral-600" x-text="reply.timestamp"></span>
+                                        </div>
+                                        <p class="text-xs text-neutral-400 bg-neutral-950/40 p-2.5 rounded-lg border border-neutral-900" x-text="reply.content"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+</body>
+</html>
