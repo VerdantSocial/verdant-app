@@ -7,11 +7,12 @@
     <script>
         window.VERDANT_SUPABASE_URL = 'https://szpcjsaurjdylfdlnowx.supabase.co';
         window.VERDANT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6cGNqc2F1cmpkeWxmZGxub3d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3ODEwNzQsImV4cCI6MjEwODM1NzA3NH0.J2AZ2cKLc-Vl1R_DDyIXOCeWRyaUi1SEyHaG7MfcF2M';
+        window.VERDANT_STAFF_PASSCODE = 'verdant-staff';
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script defer src="app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x/dist/cdn.min.js"></script>
+    <script defer src="app.js"></script>
 </head>
 <body class="min-h-screen bg-neutral-950 text-neutral-100 font-sans flex justify-center items-center p-4 selection:bg-emerald-500/30" x-data="verdantAuth">
 
@@ -92,6 +93,11 @@
                     <input x-model="displayName" type="text" maxlength="40" placeholder="Verdant Node" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 placeholder:text-neutral-600 focus:border-emerald-500/60 transition-colors">
                 </div>
 
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Bio</label>
+                    <textarea x-model="bio" maxlength="200" rows="3" placeholder="A little about you..." class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 placeholder:text-neutral-600 focus:border-emerald-500/60 transition-colors"></textarea>
+                </div>
+
                 <template x-if="errorMessage">
                     <p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p>
                 </template>
@@ -112,9 +118,14 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <div class="text-right">
-                        <div class="text-sm font-medium text-neutral-200" x-text="displayName || 'Verdant User'"></div>
+                        <div class="flex items-center gap-1 justify-end">
+                            <span class="text-sm font-medium text-neutral-200" x-text="displayName || 'Verdant User'"></span>
+                            <span x-show="badgeTier === 'verified'" class="text-emerald-400 text-xs">✔</span>
+                            <span x-show="badgeTier === 'official' || role === 'staff' || role === 'admin'" class="text-amber-400 text-xs">★</span>
+                        </div>
                         <div class="text-[11px] text-neutral-500" x-text="'@' + (username || 'user')"></div>
                     </div>
+                    <button @click="showSettings = true" class="text-xs font-mono border border-neutral-800 px-3 py-1 rounded bg-neutral-900 text-neutral-400 hover:text-emerald-400 cursor-pointer transition-colors">Settings</button>
                     <button @click="logoutUser()" class="text-xs font-mono border border-neutral-800 px-3 py-1 rounded bg-neutral-900 text-neutral-400 hover:text-red-400 cursor-pointer transition-colors">Logout</button>
                 </div>
             </header>
@@ -140,10 +151,17 @@
                     <div class="bg-neutral-900/60 border border-neutral-900 hover:border-neutral-800 rounded-xl p-4 transition-all duration-150">
                         <div class="flex items-center gap-3 mb-2">
                             <img :src="'https://api.dicebear.com/7.x/identicon/svg?seed=' + leaf.username" alt="avatar" class="w-9 h-9 rounded-lg bg-neutral-800 border border-neutral-700 p-0.5" />
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span class="font-semibold text-sm hover:underline cursor-pointer" x-text="leaf.displayName"></span>
-                                    <span class="text-xs text-neutral-500" x-text="'@' + leaf.username"></span>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-sm hover:underline cursor-pointer" x-text="leaf.displayName"></span>
+                                        <span x-show="leaf.badgeTier === 'verified'" class="text-emerald-400 text-xs">✔</span>
+                                        <span x-show="leaf.badgeTier === 'official' || leaf.role === 'staff' || leaf.role === 'admin'" class="text-amber-400 text-xs">★</span>
+                                        <span class="text-xs text-neutral-500" x-text="'@' + leaf.username"></span>
+                                    </div>
+                                    <template x-if="isStaffOrAdmin">
+                                        <button @click="deleteLeaf(leaf.id)" class="text-[10px] text-red-400 hover:text-red-300">Delete</button>
+                                    </template>
                                 </div>
                                 <span class="text-[11px] font-mono text-neutral-600" x-text="leaf.timestamp"></span>
                             </div>
@@ -180,6 +198,120 @@
             </div>
         </div>
     </template>
+
+    <div x-show="showSettings" x-transition class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-emerald-400">Account Settings</h3>
+                <button @click="showSettings = false" class="text-neutral-500 hover:text-neutral-200">✕</button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Username</label>
+                    <input x-model="username" type="text" maxlength="24" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 focus:border-emerald-500/60 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Display Name</label>
+                    <input x-model="displayName" type="text" maxlength="40" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 focus:border-emerald-500/60 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Bio</label>
+                    <textarea x-model="bio" maxlength="200" rows="3" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 focus:border-emerald-500/60 transition-colors"></textarea>
+                </div>
+
+                <template x-if="errorMessage">
+                    <p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p>
+                </template>
+
+                <div class="flex gap-3 pt-2">
+                    <button @click="saveProfile(); showSettings = false" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg cursor-pointer">Save Changes</button>
+                    <button @click="requestVerification()" class="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium py-2.5 rounded-xl text-sm transition-colors cursor-pointer">Request Verification</button>
+                </div>
+
+                <button @click="deleteAccount()" class="w-full bg-red-950/40 hover:bg-red-900/60 border border-red-800 text-red-300 font-medium py-2.5 rounded-xl text-sm transition-colors cursor-pointer">Delete Account</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showStaffModal" x-transition class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-amber-400">Staff Access</h3>
+                <button @click="showStaffModal = false" class="text-neutral-500 hover:text-neutral-200">✕</button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Staff Passphrase</label>
+                    <input x-model="staffPassphrase" type="password" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 focus:border-amber-500/60 transition-colors">
+                </div>
+                <template x-if="errorMessage">
+                    <p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p>
+                </template>
+                <button @click="authenticateStaff()" class="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg cursor-pointer">Enter Staff Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showStaffDashboard" x-transition class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-40 overflow-y-auto">
+        <div class="w-full max-w-5xl bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-2xl font-bold text-amber-400">Verdant Staff Console</h3>
+                <button @click="showStaffDashboard = false; staffAccess = false; staffPassphrase = ''" class="text-neutral-500 hover:text-neutral-200">Close</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                    <h4 class="text-sm uppercase tracking-[0.2em] text-neutral-400 mb-3">Verification Requests</h4>
+                    <div class="space-y-3">
+                        <template x-for="request in verificationRequests" :key="request.id">
+                            <div class="border border-neutral-800 rounded-xl p-3">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <div class="text-sm font-medium text-neutral-100" x-text="request.profile.display_name"></div>
+                                        <div class="text-[11px] text-neutral-500" x-text="'@' + request.profile.username"></div>
+                                    </div>
+                                    <span class="text-[10px] uppercase tracking-[0.2em] text-amber-400" x-text="request.status"></span>
+                                </div>
+                                <p class="text-xs text-neutral-400 mt-2" x-text="request.reason || 'No reason provided.'"></p>
+                                <div class="mt-3 flex gap-2">
+                                    <button @click="approveVerificationRequest(request.id)" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-2 rounded-lg text-xs">Approve</button>
+                                    <button @click="rejectVerificationRequest(request.id)" class="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium py-2 rounded-lg text-xs">Reject</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                    <h4 class="text-sm uppercase tracking-[0.2em] text-neutral-400 mb-3">Accounts & Moderation</h4>
+                    <div class="space-y-3">
+                        <template x-for="account in staffAccounts" :key="account.id">
+                            <div class="border border-neutral-800 rounded-xl p-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-medium text-neutral-100" x-text="account.display_name"></span>
+                                            <span x-show="account.badge_tier === 'verified'" class="text-emerald-400 text-xs">✔</span>
+                                            <span x-show="account.badge_tier === 'official' || account.role === 'staff' || account.role === 'admin'" class="text-amber-400 text-xs">★</span>
+                                        </div>
+                                        <div class="text-[11px] text-neutral-500" x-text="'@' + account.username"></div>
+                                    </div>
+                                    <span class="text-[10px] uppercase tracking-[0.2em] text-neutral-400" x-text="account.role"></span>
+                                </div>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <button @click="toggleBan(account.id, account.is_banned)" class="flex-1 bg-red-900/40 hover:bg-red-900/60 text-red-200 border border-red-800 py-2 rounded-lg text-xs" x-text="account.is_banned ? 'Unban' : 'Ban'"></button>
+                                    <button @click="grantOfficialAccount(account.id)" class="flex-1 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2 rounded-lg text-xs">Official</button>
+                                    <button @click="deleteLeafByStaff(account.id)" class="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium py-2 rounded-lg text-xs">Remove</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
