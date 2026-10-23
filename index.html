@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verdant — Secure Login</title>
+    <script src="https://jsdelivr.net"></script>
+    <script defer src="https://jsdelivr.net"></script>
+    <!-- Include the free Supabase script directly in the browser -->
+    <script src="https://jsdelivr.net"></script>
+</head>
+<body class="min-h-screen bg-neutral-950 text-neutral-100 font-sans flex justify-center items-center p-4 selection:bg-emerald-500/30"
+      x-data="{
+          userEmail: '',
+          verificationCode: '',
+          step: 'email', // 'email', 'verify', or 'feed'
+          errorMessage: '',
+          supabaseClient: null,
+          
+          init() {
+              // Initialize Supabase using your free keys from your Supabase dashboard
+              this.supabaseClient = supabase.createClient('YOUR_SUPABASE_PROJECT_URL', 'YOUR_SUPABASE_ANON_KEY');
+              
+              // Check if user is already logged in on this browser
+              const session = this.supabaseClient.auth.getSession();
+              if (session) { this.step = 'feed'; }
+          },
+          
+          async sendMagicCode() {
+              this.errorMessage = '';
+              const { data, error } = await this.supabaseClient.auth.signInWithOtp({
+                  email: this.userEmail
+              });
+              if (error) { this.errorMessage = error.message; } else { this.step = 'verify'; }
+          },
+          
+          async confirmCode() {
+              this.errorMessage = '';
+              const { data, error } = await this.supabaseClient.auth.verifyOtp({
+                  email: this.userEmail,
+                  token: this.verificationCode,
+                  type: 'email'
+              });
+              if (error) { this.errorMessage = error.message; } else { this.step = 'feed'; }
+          }
+      }">
+
+    <!-- STEP 1: Enter Email Panel -->
+    <template x-if="step === 'email'">
+        <div class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+            <h2 class="text-xl font-bold text-emerald-400 tracking-wide mb-1">🌱 Join Verdant</h2>
+            <p class="text-xs text-neutral-500 mb-6">Enter your email to receive a 6-digit confirmation security code.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">Email Address</label>
+                    <input x-model="userEmail" type="email" placeholder="you@example.com" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 outline-none text-neutral-200 focus:border-emerald-500 transition-colors text-sm" />
+                </div>
+                <template x-if="errorMessage"><p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p></template>
+                <button @click="sendMagicCode()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg cursor-pointer">Request Code</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- STEP 2: Enter 6-Digit Code Panel -->
+    <template x-if="step === 'verify'">
+        <div class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl">
+            <h2 class="text-xl font-bold text-emerald-400 tracking-wide mb-1">📟 Enter Verification Token</h2>
+            <p class="text-xs text-neutral-500 mb-6" x-text="'We sent a code directly to ' + userEmail"></p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase font-mono text-neutral-400 mb-1">6-Digit Code</label>
+                    <input x-model="verificationCode" type="text" maxlength="6" placeholder="000000" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 tracking-[0.5em] text-center font-mono outline-none text-emerald-400 focus:border-emerald-500 text-lg" />
+                </div>
+                <template x-if="errorMessage"><p class="text-xs text-red-400 bg-red-950/20 border border-red-900/40 px-3 py-2 rounded-lg" x-text="errorMessage"></p></template>
+                <div class="flex gap-3">
+                    <button @click="step = 'email'" class="w-1/3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 rounded-xl text-sm cursor-pointer">Back</button>
+                    <button @click="confirmCode()" class="w-2/3 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg cursor-pointer">Verify & Enter</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- STEP 3: Main App Interface Feed (Visible only after successful login verification) -->
+    <template x-if="step === 'feed'">
+        <div class="w-full max-w-2xl border-x border-neutral-800 min-h-screen px-4 py-6 align-top self-start" x-data="{
+            leafText: '',
+            replyingTo: null,
+            characterLimit: 350,
+            leafs: JSON.parse(localStorage.getItem('verdant_leafs')) || []
+        }">
+            <!-- Header -->
+            <header class="border-b border-neutral-800 pb-4 mb-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-wider text-emerald-400">🌱 VERDANT</h1>
+                    <p class="text-xs text-neutral-500">Secure Network Session Active</p>
+                </div>
+                <button @click="supabaseClient.auth.signOut(); location.reload();" class="text-xs font-mono border border-neutral-800 px-3 py-1 rounded bg-neutral-900 text-neutral-400 hover:text-red-400 cursor-pointer">Log Out</button>
+            </header>
+
+            <!-- (The rest of your existing Leaf/Reply Composer UI markup fits perfectly right here!) -->
+             <div class="text-center text-neutral-600 font-mono text-xs border border-dashed border-neutral-800 py-12 rounded-xl">
+                 [ Account Verified. You can now publish Leafs to the network. ]
+             </div>
+        </div>
+    </template>
+
+</body>
+</html>
