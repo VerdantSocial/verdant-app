@@ -1,5 +1,5 @@
 document.addEventListener('alpine:init', () => {
-    const safeLocalStorage = {
+    const safeLS = {
         get(key, fallback = null) {
             try {
                 const raw = localStorage.getItem(key);
@@ -13,21 +13,21 @@ document.addEventListener('alpine:init', () => {
             try {
                 localStorage.setItem(key, JSON.stringify(value));
             } catch (err) {
-                // no-op for restricted storage
+                // keep app working without blocking on localStorage failures
             }
         },
         remove(key) {
             try {
                 localStorage.removeItem(key);
             } catch (err) {
-                // no-op for restricted storage
+                // keep app working without blocking on localStorage failures
             }
         }
     };
 
     const fallbackAuth = {
         async getSession() {
-            const session = safeLocalStorage.get('verdant_session', null);
+            const session = safeLS.get('verdant_session', null);
             return {
                 data: {
                     session: session && session.email ? { user: { id: session.user_id || 'local-user', email: session.email } } : null
@@ -40,7 +40,7 @@ document.addEventListener('alpine:init', () => {
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
                 return { data: null, error: { message: 'Please type a valid email.' } };
             }
-            safeLocalStorage.set('verdant_session', { email: normalized, user_id: 'local-user' });
+            safeLS.set('verdant_session', { email: normalized, user_id: 'local-user' });
             return { data: { user: { id: 'local-user', email: normalized } }, error: null };
         },
         async verifyOtp({ email, token }) {
@@ -49,7 +49,7 @@ document.addEventListener('alpine:init', () => {
             if (!/^\d{6}$/.test(normalizedToken)) {
                 return { data: null, error: { message: 'Please enter a 6-digit code.' } };
             }
-            safeLocalStorage.set('verdant_session', { email: normalizedEmail, user_id: 'local-user' });
+            safeLS.set('verdant_session', { email: normalizedEmail, user_id: 'local-user' });
             return {
                 data: {
                     user: { id: 'local-user', email: normalizedEmail },
@@ -59,8 +59,8 @@ document.addEventListener('alpine:init', () => {
             };
         },
         async signOut() {
-            safeLocalStorage.remove('verdant_session');
-            safeLocalStorage.remove('verdant_profile');
+            safeLS.remove('verdant_session');
+            safeLS.remove('verdant_profile');
             return { error: null };
         },
         async signInWithOAuth() {
@@ -70,7 +70,7 @@ document.addEventListener('alpine:init', () => {
             return () => {};
         },
         async getUser() {
-            const session = safeLocalStorage.get('verdant_session', null);
+            const session = safeLS.get('verdant_session', null);
             return {
                 data: {
                     user: session && session.email ? { id: session.user_id || 'local-user', email: session.email } : null
@@ -80,7 +80,7 @@ document.addEventListener('alpine:init', () => {
         }
     };
 
-    const retroAvatar = (seed, label = 'V') => {
+    const buildRetroAvatar = (seed, label = 'V') => {
         const palette = ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#fb7185', '#a78bfa', '#60a5fa', '#f472b6'];
         let hash = 0;
         const value = String(seed || 'verdant');
@@ -115,21 +115,39 @@ document.addEventListener('alpine:init', () => {
         step: 'email',
         errorMessage: '',
         supabaseClient: null,
-        profile: null,
-        profileDraft: { username: '', display_name: '', bio: '', avatar_url: '' },
         leafText: '',
         replyingTo: null,
         characterLimit: 350,
-        leafs: [],
+        profile: null,
+        profileDraft: { username: '', display_name: '', bio: '', avatar_url: '' },
+        leafs: safeLS.get('verdant_leafs', [
+            {
+                id: 1,
+                username: 'seed_zero',
+                displayName: 'System Node',
+                author: {
+                    id: 'seed-zero',
+                    username: 'seed_zero',
+                    display_name: 'System Node',
+                    badge_tier: 'verified',
+                    role: 'admin',
+                    avatar_url: buildRetroAvatar('System Node', 'S')
+                },
+                content: 'Welcome to your secure terminal session on Verdant. Turn your first Leaf below!',
+                timestamp: 'System Initialization',
+                likes: 0,
+                replies: []
+            }
+        ]),
         staffOpen: false,
         staffPassword: '',
         verificationQueue: [],
 
         profileAvatarUrl(profileObj = this.profile) {
-            if (!profileObj) return retroAvatar('Verdant', 'V');
+            if (!profileObj) return buildRetroAvatar('Verdant', 'V');
             if (profileObj.avatar_url && String(profileObj.avatar_url).trim()) return profileObj.avatar_url;
             const seed = profileObj.display_name || profileObj.username || profileObj.email || 'Verdant';
-            return retroAvatar(seed, (profileObj.display_name || profileObj.username || 'V').charAt(0).toUpperCase());
+            return buildRetroAvatar(seed, (profileObj.display_name || profileObj.username || 'V').charAt(0).toUpperCase());
         },
 
         profileIsOfficial(profileObj = this.profile) {
@@ -155,17 +173,12 @@ document.addEventListener('alpine:init', () => {
             return 'hidden';
         },
 
-        makeAvailableUsername(email) {
-            const base = String(email || 'verdant').split('@')[0].replace(/[^a-z0-9_]/gi, '').toLowerCase() || 'verdant';
-            return `${base}_${Math.random().toString(36).slice(2, 7)}`;
-        },
-
         buildProfile(user, extras = {}) {
             const email = String((user && user.email) || this.userEmail || 'verdant@local').trim();
             return {
                 id: (user && user.id) || 'local-user',
                 email,
-                username: extras.username || this.makeAvailableUsername(email),
+                username: extras.username || `${String(email.split('@')[0] || 'verdant').replace(/[^a-z0-9_]/gi, '').toLowerCase() || 'verdant'}_${Math.random().toString(36).slice(2, 7)}`,
                 display_name: extras.display_name || (email.split('@')[0] || 'Verdant User'),
                 bio: extras.bio || '',
                 avatar_url: extras.avatar_url || '',
@@ -176,47 +189,26 @@ document.addEventListener('alpine:init', () => {
 
         saveLocalProfile(profileObj) {
             if (profileObj) {
-                safeLocalStorage.set('verdant_profile', profileObj);
+                safeLS.set('verdant_profile', profileObj);
             }
         },
 
         init() {
-            this.leafs = safeLocalStorage.get('verdant_leafs', [
-                {
-                    id: 1,
-                    username: 'seed_zero',
-                    displayName: 'System Node',
-                    author: {
-                        id: 'seed-zero',
-                        username: 'seed_zero',
-                        display_name: 'System Node',
-                        badge_tier: 'verified',
-                        role: 'admin',
-                        avatar_url: retroAvatar('System Node', 'S')
-                    },
-                    content: 'Welcome to your secure terminal session on Verdant. Turn your first Leaf below!',
-                    timestamp: 'System Initialization',
-                    likes: 0,
-                    replies: []
-                }
-            ]);
-
             const url = window.VERDANT_SUPABASE_URL || window.SUPABASE_URL || '';
             const anonKey = window.VERDANT_SUPABASE_ANON_KEY || window.SUPABASE_ANON_KEY || '';
             const hasSupabase = Boolean(window.supabase && url && anonKey && !url.includes('your-project') && !anonKey.includes('your-'));
 
             if (!hasSupabase) {
                 this.supabaseClient = fallbackAuth;
-                const stored = safeLocalStorage.get('verdant_session', null);
-                const savedProfile = safeLocalStorage.get('verdant_profile', null);
-                if (stored && stored.email) {
-                    this.userEmail = stored.email;
-                    this.profile = savedProfile || this.buildProfile({ id: stored.user_id || 'local-user', email: stored.email }, {
+                const session = safeLS.get('verdant_session', null);
+                if (session && session.email) {
+                    this.userEmail = session.email;
+                    this.profile = safeLS.get('verdant_profile', this.buildProfile({ id: session.user_id || 'local-user', email: session.email }, {
                         username: 'verdant_local',
                         display_name: 'Local Verdant User',
                         bio: 'Working offline.',
                         badge_tier: 'verified'
-                    });
+                    }));
                     this.profileDraft = {
                         username: this.profile.username || '',
                         display_name: this.profile.display_name || '',
@@ -232,7 +224,7 @@ document.addEventListener('alpine:init', () => {
                 this.supabaseClient = window.supabase.createClient(url, anonKey);
             } catch (err) {
                 this.supabaseClient = fallbackAuth;
-                this.errorMessage = 'Supabase setup failed; running in local mode.';
+                this.errorMessage = 'Supabase setup failed; running in safe local mode.';
                 return;
             }
 
@@ -260,14 +252,17 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
+        makeAvailableUsername(email) {
+            const base = String(email || 'verdant').split('@')[0].replace(/[^a-z0-9_]/gi, '').toLowerCase() || 'verdant';
+            return `${base}_${Math.random().toString(36).slice(2, 7)}`;
+        },
+
         async signInWithProvider(provider) {
             if (!this.supabaseClient) return;
             if (this.supabaseClient && this.supabaseClient.auth && this.supabaseClient.auth.signInWithOAuth) {
                 const { error } = await this.supabaseClient.auth.signInWithOAuth({
                     provider,
-                    options: {
-                        redirectTo: window.location.origin + window.location.pathname
-                    }
+                    options: { redirectTo: window.location.origin + window.location.pathname }
                 });
                 if (error) this.errorMessage = error.message;
             }
@@ -343,7 +338,7 @@ document.addEventListener('alpine:init', () => {
                 display_name: displayName,
                 bio,
                 avatar_url: avatar || this.profileAvatarUrl({
-                    ...this.profile,
+                    ...(this.profile || {}),
                     username,
                     display_name: displayName,
                     bio,
@@ -393,7 +388,7 @@ document.addEventListener('alpine:init', () => {
                 this.leafs = [newLeaf, ...this.leafs];
             }
 
-            safeLocalStorage.set('verdant_leafs', this.leafs);
+            safeLS.set('verdant_leafs', this.leafs);
             this.leafText = '';
         },
 
@@ -404,15 +399,15 @@ document.addEventListener('alpine:init', () => {
                 }
                 return leaf;
             });
-            safeLocalStorage.set('verdant_leafs', this.leafs);
+            safeLS.set('verdant_leafs', this.leafs);
         },
 
         async logoutUser() {
             if (this.supabaseClient && this.supabaseClient.auth && this.supabaseClient.auth.signOut) {
                 await this.supabaseClient.auth.signOut();
             }
-            safeLocalStorage.remove('verdant_session');
-            safeLocalStorage.remove('verdant_profile');
+            safeLS.remove('verdant_session');
+            safeLS.remove('verdant_profile');
             this.profile = null;
             this.userEmail = '';
             this.verificationCode = '';
@@ -458,10 +453,10 @@ document.addEventListener('alpine:init', () => {
         },
 
         avatarUrlForAuthor(authorObj) {
-            if (!authorObj) return retroAvatar('Verdant', 'V');
+            if (!authorObj) return buildRetroAvatar('Verdant', 'V');
             if (authorObj.avatar_url && String(authorObj.avatar_url).trim()) return authorObj.avatar_url;
             const seed = authorObj.display_name || authorObj.username || authorObj.email || 'Verdant';
-            return retroAvatar(seed, String(authorObj.display_name || authorObj.username || 'V').charAt(0).toUpperCase());
+            return buildRetroAvatar(seed, String(authorObj.display_name || authorObj.username || 'V').charAt(0).toUpperCase());
         }
     }));
 
