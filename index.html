@@ -411,7 +411,10 @@
               <div class="username">@<span x-text="currentUser.username"></span></div>
             </div>
           </div>
-          <button class="danger" @click="logoutUser()">Log out</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="secondary" @click="startNewAccount()">Create account</button>
+            <button class="danger" @click="logoutUser()">Log out</button>
+          </div>
         </div>
 
         <div class="composer">

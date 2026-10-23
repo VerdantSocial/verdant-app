@@ -142,6 +142,19 @@ document.addEventListener('alpine:init', () => {
       this.step = 'feed';
     },
 
+    startNewAccount() {
+      safeStorage.remove('verdant_user');
+      this.form = {
+        username: '',
+        email: '',
+        password: '',
+        bio: '',
+        pfpUrl: ''
+      };
+      this.errorMessage = '';
+      this.step = 'signup';
+    },
+
     logoutUser() {
       safeStorage.remove('verdant_user');
       this.step = 'signup';
