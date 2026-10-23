@@ -13,60 +13,300 @@
   <script defer src="app.js"></script>
 
   <style>
+    :root {
+      --bg: #09090b;
+      --panel: #111827;
+      --panel-alt: #1a1f2e;
+      --border: #374151;
+      --text: #f5f5f5;
+      --muted: #9ca3af;
+      --accent: #34d399;
+      --accent-strong: #10b981;
+      --danger: #f87171;
+    }
+
+    * { box-sizing: border-box; }
+
     html, body {
       margin: 0;
       height: 100%;
-      background: #09090b;
-      color: #f5f5f5;
+      background: var(--bg);
+      color: var(--text);
       font-family: Arial, sans-serif;
     }
 
     body {
       display: flex;
-      align-items: center;
       justify-content: center;
-      background: radial-gradient(circle at top, rgba(16,185,129,0.18), transparent 32%), #09090b;
+      padding: 32px 16px;
+      background: radial-gradient(circle at top, rgba(16,185,129,0.18), transparent 35%), var(--bg);
     }
 
-    .card {
-      width: min(900px, 90vw);
-      background: #111827;
-      border: 1px solid #374151;
-      border-radius: 28px;
-      padding: 48px;
-      box-shadow: 0 20px 80px rgba(0,0,0,0.4);
+    .shell {
+      width: min(980px, 100%);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding: 18px 22px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
     }
 
     h1 {
-      margin: 0 0 16px;
-      font-size: clamp(2.5rem, 5vw, 6rem);
-      color: #34d399;
-    }
-
-    p {
       margin: 0;
-      color: #d1d5db;
-      font-size: clamp(1.1rem, 2vw, 2rem);
-      line-height: 1.5;
+      color: var(--accent);
+      font-size: clamp(2rem, 4vw, 3rem);
     }
 
     .badge {
-      display: inline-block;
-      margin-top: 18px;
-      padding: 10px 18px;
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
       border-radius: 999px;
-      background: rgba(52, 211, 153, 0.15);
+      background: rgba(52, 211, 153, 0.12);
       color: #a7f3d0;
-      border: 1px solid rgba(52, 211, 153, 0.3);
+      border: 1px solid rgba(52, 211, 153, 0.25);
       font-weight: bold;
+      font-size: 12px;
+    }
+
+    .composer,
+    .leaf,
+    .reply-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    .composer {
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    .composer textarea {
+      width: 100%;
+      min-height: 96px;
+      resize: vertical;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #0b1120;
+      color: var(--text);
+      font: inherit;
+      outline: none;
+    }
+
+    .composer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #062d1d;
+    }
+
+    .ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .leaf-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .leaf {
+      padding: 18px;
+    }
+
+    .leaf-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .userline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .display-name {
+      font-weight: 700;
+    }
+
+    .username {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .leaf-content {
+      margin: 12px 0;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      color: #f3f4f6;
+    }
+
+    .leaf-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .leaf-actions button {
+      padding: 6px 10px;
+      font-size: 12px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .reply-box {
+      margin-top: 14px;
+      padding: 14px;
+    }
+
+    .reply-box textarea {
+      width: 100%;
+      min-height: 70px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      background: #0b1120;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px;
+      font: inherit;
+      outline: none;
+    }
+
+    .reply-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .replies {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .reply {
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .reply-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .reply-content {
+      color: #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.5;
     }
   </style>
 </head>
-<body x-data="{ ready: true }">
-  <div class="card">
-    <h1>Verdant</h1>
-    <p>System ready for the St. Jude awareness feed.</p>
-    <div class="badge">Staff passcode: verdantadmin</div>
+<body x-data="verdantFeed">
+  <div class="shell">
+    <div class="topbar">
+      <h1>Verdant</h1>
+      <div class="badge">St. Jude awareness feed</div>
+    </div>
+
+    <div class="composer">
+      <textarea x-model="leafText" placeholder="Write a leaf..."></textarea>
+      <div class="composer-row">
+        <div class="meta" x-text="(characterLimit - leafText.length) + ' characters remaining'"></div>
+        <button class="primary" @click="publishLeaf()">Post leaf</button>
+      </div>
+    </div>
+
+    <div class="leaf-list">
+      <template x-for="leaf in leafs" :key="leaf.id">
+        <article class="leaf">
+          <div class="leaf-head">
+            <div class="userline">
+              <div class="display-name" x-text="leaf.displayName"></div>
+              <div class="username">@<span x-text="leaf.username"></span></div>
+            </div>
+            <div class="time" x-text="leaf.timestamp"></div>
+          </div>
+
+          <div class="leaf-content" x-text="leaf.content"></div>
+
+          <div class="leaf-actions">
+            <button @click="toggleLike(leaf.id)">❤️ <span x-text="leaf.likes || 0"></span></button>
+            <button @click="replyingTo = (replyingTo === leaf.id ? null : leaf.id)">💬 <span x-text="(leaf.replies || []).length"></span></button>
+          </div>
+
+          <template x-if="replyingTo === leaf.id">
+            <div class="reply-box">
+              <textarea x-model="replyText" placeholder="Write a reply..."></textarea>
+              <div class="reply-actions">
+                <button class="ghost" @click="replyingTo = null">Cancel</button>
+                <button class="primary" @click="publishReply(leaf.id)">Reply</button>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="leaf.replies && leaf.replies.length">
+            <div class="replies">
+              <template x-for="reply in leaf.replies" :key="reply.id">
+                <div class="reply">
+                  <div class="reply-head">
+                    <span class="display-name" x-text="reply.displayName"></span>
+                    <span class="username">@<span x-text="reply.username"></span></span>
+                  </div>
+                  <div class="reply-content" x-text="reply.content"></div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </article>
+      </template>
+    </div>
   </div>
 </body>
 </html>
