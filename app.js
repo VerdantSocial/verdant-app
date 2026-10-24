@@ -54,8 +54,7 @@ document.addEventListener('alpine:init', () => {
   const supabaseConfig = window.VERDANT_SUPABASE || {};
   const supabaseUrl = String(supabaseConfig.url || '').trim().replace(/\/+$/, '');
   const supabaseAnonKey = String(supabaseConfig.anonKey || '').trim();
-  const supabaseSiteUrl = String(supabaseConfig.siteUrl || window.location.origin + window.location.pathname || 'https://verdantsocial.github.io/verdant-app').trim();
-  const supabaseClient = (window.supabase && window.supabase.createClient && supabaseUrl && supabaseAnonKey)
+  const supabaseClient = window.supabase && window.supabase.createClient && supabaseUrl && supabaseAnonKey
     ? window.supabase.createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
           persistSession: true,
@@ -65,8 +64,24 @@ document.addEventListener('alpine:init', () => {
       })
     : null;
 
-  function normalizeReplyShape(reply) {
-    const profile = reply.profiles && reply.profiles.length ? reply.profiles[0] : null;
+  function getCurrentUser() {
+    return safeStorage.get('verdant_user', null);
+  }
+
+  function setLocalFeed(feed) {
+    safeStorage.set('verdant_leafs', Array.isArray(feed) ? feed : seedLeafs);
+    return Array.isArray(feed) ? feed : seedLeafs;
+  }
+
+  function formatDate(value) {
+    if (!value) return 'Just now';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  function normalizeReply(reply) {
+    const profile = Array.isArray(reply.profiles) && reply.profiles[0] ? reply.profiles[0] : null;
     return {
       id: reply.id,
       username: profile ? profile.username : reply.username || 'unknown',
@@ -76,20 +91,35 @@ document.addEventListener('alpine:init', () => {
     };
   }
 
-  function getCurrentUser() {
-    return safeStorage.get('verdant_user', null);
+  function normalizeLeaf(row, rows) {
+    const profile = Array.isArray(row.profiles) && row.profiles[0] ? row.profiles[0] : null;
+    const likesCount = Array.isArray(row.leaf_likes) && row.leaf_likes[0] ? Number(row.leaf_likes[0].count || row.leaf_likes[0].likes || 0) : 0;
+    const replies = (rows || [])
+      .filter((reply) => reply.parent_id === row.id)
+      .map((reply) => normalizeReply(reply));
+
+    return {
+      id: row.id,
+      username: profile ? profile.username : row.username || 'unknown',
+      displayName: profile ? (profile.display_name || profile.username) : row.display_name || 'Unknown',
+      content: row.content || '',
+      timestamp: formatDate(row.created_at),
+      likes: likesCount,
+      replies,
+      authorId: row.author_id,
+      avatarUrl: profile && profile.avatar_url ? profile.avatar_url : makeAvatar(profile ? (profile.display_name || profile.username) : 'verdant', (profile ? (profile.display_name || profile.username) : 'V').charAt(0).toUpperCase())
+    };
   }
 
-  function setLeafFeedFromStore() {
-    const existing = safeStorage.get('verdant_leafs', seedLeafs);
-    return Array.isArray(existing) ? existing : seedLeafs;
-  }
-
-  function formatDate(value) {
-    if (!value) return 'Just now';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Just now';
-    return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  function serializeUser(data) {
+    return {
+      id: data?.id || null,
+      username: data?.username || data?.displayName || 'verdant_user',
+      displayName: data?.displayName || data?.username || 'Verdant User',
+      email: data?.email || 'you@example.com',
+      bio: data?.bio || '',
+      pfpUrl: data?.pfpUrl || data?.avatar_url || makeAvatar(data?.displayName || data?.username || 'verdant', (data?.displayName || data?.username || 'V').charAt(0).toUpperCase())
+    };
   }
 
   Alpine.data('verdantApp', () => ({
@@ -107,10 +137,9 @@ document.addEventListener('alpine:init', () => {
     replyText: '',
     replyingTo: null,
     characterLimit: 350,
-    leafs: setLeafFeedFromStore(),
+    leafs: safeStorage.get('verdant_leafs', seedLeafs),
     isSubmitting: false,
-    hasSupabase: Boolean(supabaseClient),
-    connectionNotice: supabaseClient ? 'Connected to Supabase' : 'Set window.VERDANT_SUPABASE to enable live data sync',
+    hasSupabase: !!supabaseClient,
 
     get currentUser() {
       return getCurrentUser() || {
@@ -135,48 +164,54 @@ document.addEventListener('alpine:init', () => {
       return makeAvatar(this.form.username || 'verdant', (this.form.username || 'V').charAt(0).toUpperCase());
     },
 
-    async hydrateFromSession(user) {
-      if (!user || !supabaseClient) {
-        this.step = 'feed';
+    setAuthMode(mode) {
+      this.authMode = mode;
+      this.errorMessage = '';
+    },
+
+    async hydrateUserFromSession(sessionUser) {
+      if (!sessionUser) {
+        this.step = 'signup';
         return;
       }
 
-      const { data: profileData, error } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
+      let userProfile = null;
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('id', sessionUser.id)
+          .maybeSingle();
 
-      if (error) {
-        console.warn('Profile lookup failed', error);
+        if (!error) userProfile = data;
       }
 
-      const userRecord = {
-        id: user.id,
-        username: profileData?.username || user.user_metadata?.username || (user.email || 'verdant_user').split('@')[0],
-        displayName: profileData?.display_name || user.user_metadata?.display_name || profileData?.username || (user.email || 'Verdant User').split('@')[0],
-        email: profileData?.email || user.email || 'you@example.com',
-        bio: profileData?.bio || '',
-        pfpUrl: profileData?.avatar_url || makeAvatar(profileData?.display_name || profileData?.username || user.email || 'verdant', (profileData?.display_name || profileData?.username || 'V').charAt(0).toUpperCase())
-      };
+      const mapped = serializeUser({
+        id: sessionUser.id,
+        username: userProfile?.username || sessionUser.user_metadata?.username || (sessionUser.email || 'verdant_user').split('@')[0],
+        displayName: userProfile?.display_name || sessionUser.user_metadata?.display_name || (userProfile?.username || (sessionUser.email || 'Verdant User').split('@')[0]),
+        email: userProfile?.email || sessionUser.email || 'you@example.com',
+        bio: userProfile?.bio || '',
+        pfpUrl: userProfile?.avatar_url || makeAvatar(userProfile?.display_name || userProfile?.username || sessionUser.email || 'verdant', (userProfile?.display_name || userProfile?.username || 'V').charAt(0).toUpperCase())
+      });
 
-      safeStorage.set('verdant_user', userRecord);
-      this.form.username = userRecord.username;
-      this.form.email = userRecord.email;
-      this.form.bio = userRecord.bio;
-      this.form.pfpUrl = userRecord.pfpUrl;
+      safeStorage.set('verdant_user', mapped);
+      this.form.username = mapped.username;
+      this.form.email = mapped.email;
+      this.form.bio = mapped.bio;
+      this.form.pfpUrl = mapped.pfpUrl;
       this.step = 'feed';
       await this.syncFeed();
     },
 
     async syncFeed() {
       if (!supabaseClient) {
-        this.leafs = setLeafFeedFromStore();
+        this.leafs = safeStorage.get('verdant_leafs', seedLeafs);
         return;
       }
 
       try {
-        const { data: leafRows, error: leafError } = await supabaseClient
+        const { data: rows, error } = await supabaseClient
           .from('leafs')
           .select(`
             id,
@@ -191,38 +226,18 @@ document.addEventListener('alpine:init', () => {
           .eq('hidden_by_staff', false)
           .order('created_at', { ascending: false });
 
-        if (leafError) throw leafError;
+        if (error) throw error;
 
-        const mapped = (leafRows || []).map((row) => {
-          const profile = Array.isArray(row.profiles) ? row.profiles[0] : null;
-          const likesCount = Array.isArray(row.leaf_likes) && row.leaf_likes.length ? Number(row.leaf_likes[0].count || 0) : 0;
+        const mapped = (rows || [])
+          .filter((row) => row.parent_id === null || row.parent_id === undefined)
+          .map((row) => normalizeLeaf(row, rows || []));
 
-          return {
-            id: row.id,
-            username: profile ? profile.username : 'unknown',
-            displayName: profile ? (profile.display_name || profile.username) : 'Unknown',
-            content: row.content,
-            timestamp: formatDate(row.created_at),
-            likes: likesCount,
-            replies: (leafRows || [])
-              .filter((reply) => reply.parent_id === row.id)
-              .map((reply) => normalizeReplyShape({ ...reply, profiles: reply.profiles || [] })),
-            authorId: row.author_id,
-            avatarUrl: profile && profile.avatar_url ? profile.avatar_url : makeAvatar(profile ? (profile.display_name || profile.username) : 'verdant', (profile ? (profile.display_name || profile.username) : 'V').charAt(0).toUpperCase())
-          };
-        });
-
-        this.leafs = mapped.filter((leaf) => leaf.id && (leaf.parent_id === null || leaf.parent_id === undefined));
-        safeStorage.set('verdant_leafs', this.leafs);
-      } catch (error) {
-        console.error('Feed sync failed', error);
-        this.leafs = setLeafFeedFromStore();
+        this.leafs = mapped.length ? mapped : seedLeafs;
+        setLocalFeed(this.leafs);
+      } catch (err) {
+        console.error('Feed sync failed', err);
+        this.leafs = safeStorage.get('verdant_leafs', seedLeafs);
       }
-    },
-
-    toggleAuthMode(mode) {
-      this.authMode = mode;
-      this.errorMessage = '';
     },
 
     async createAccount() {
@@ -246,7 +261,7 @@ document.addEventListener('alpine:init', () => {
       }
 
       if (!supabaseClient) {
-        this.errorMessage = 'Supabase is not configured. Set window.VERDANT_SUPABASE.url and window.VERDANT_SUPABASE.anonKey before running the app.';
+        this.errorMessage = 'Supabase is not configured. Add window.VERDANT_SUPABASE before the app script.';
         return;
       }
 
@@ -258,7 +273,7 @@ document.addEventListener('alpine:init', () => {
           const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
           if (error) throw error;
           if (data?.user) {
-            await this.hydrateFromSession(data.user);
+            await this.hydrateUserFromSession(data.user);
           }
           return;
         }
@@ -267,7 +282,7 @@ document.addEventListener('alpine:init', () => {
           email,
           password,
           options: {
-            emailRedirectTo: supabaseSiteUrl,
+            emailRedirectTo: window.location.origin,
             data: {
               username,
               display_name: username
@@ -280,7 +295,7 @@ document.addEventListener('alpine:init', () => {
         if (data?.user) {
           const profilePayload = {
             id: data.user.id,
-            email: data.user.email,
+            email,
             username,
             display_name: username,
             bio: String(this.form.bio || '').trim(),
@@ -292,34 +307,40 @@ document.addEventListener('alpine:init', () => {
             .upsert(profilePayload, { onConflict: 'id' });
 
           if (profileError) {
-            console.warn('Profile upsert failed', profileError);
+            console.warn('Profile upsert issue:', profileError);
           }
 
           if (data.session) {
-            await this.hydrateFromSession(data.user);
+            await this.hydrateUserFromSession(data.user);
             return;
           }
 
-          this.errorMessage = 'Check your email to confirm your account before sign-in is available.';
+          this.errorMessage = 'Check your inbox to confirm the account before you can sign in.';
           this.step = 'signup';
         }
       } catch (error) {
-        console.error('Authentication failed', error);
-        this.errorMessage = error?.message || 'Could not complete this request.';
+        console.error('Auth failed', error);
+        this.errorMessage = error?.message || 'Could not complete that request.';
       } finally {
         this.isSubmitting = false;
       }
     },
 
     async finishProfile() {
-      const username = String(this.form.username || '').trim();
-      const email = String(this.form.email || '').trim();
-      const password = String(this.form.password || '').trim();
-
       if (!supabaseClient) {
         this.errorMessage = 'Supabase is not configured.';
         return;
       }
+
+      const user = getCurrentUser();
+      if (!user) {
+        this.errorMessage = 'You need to be signed in before saving a profile.';
+        return;
+      }
+
+      const username = String(this.form.username || '').trim();
+      const email = String(this.form.email || '').trim();
+      const password = String(this.form.password || '').trim();
 
       if (!username || !email || !password) {
         this.errorMessage = 'Your account is missing required details.';
@@ -327,14 +348,14 @@ document.addEventListener('alpine:init', () => {
       }
 
       try {
-        const { data: { user }, error: sessionError } = await supabaseClient.auth.getUser();
-        if (sessionError || !user) {
-          this.errorMessage = 'You need to sign in before saving a profile.';
+        const { data: { user: sessionUser }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !sessionUser) {
+          this.errorMessage = 'Your session is no longer active.';
           return;
         }
 
         const profilePayload = {
-          id: user.id,
+          id: sessionUser.id,
           email,
           username,
           display_name: username,
@@ -342,14 +363,11 @@ document.addEventListener('alpine:init', () => {
           avatar_url: (String(this.form.pfpUrl || '').trim()) || makeAvatar(username, username.charAt(0).toUpperCase())
         };
 
-        const { error } = await supabaseClient
-          .from('profiles')
-          .upsert(profilePayload, { onConflict: 'id' });
-
+        const { error } = await supabaseClient.from('profiles').upsert(profilePayload, { onConflict: 'id' });
         if (error) throw error;
 
-        safeStorage.set('verdant_user', {
-          id: user.id,
+        const nextUser = serializeUser({
+          id: sessionUser.id,
           username,
           displayName: username,
           email,
@@ -357,11 +375,12 @@ document.addEventListener('alpine:init', () => {
           pfpUrl: profilePayload.avatar_url
         });
 
+        safeStorage.set('verdant_user', nextUser);
         this.errorMessage = '';
         this.step = 'feed';
         await this.syncFeed();
       } catch (error) {
-        console.error('Profile update failed', error);
+        console.error('Profile failed', error);
         this.errorMessage = error?.message || 'Profile update failed.';
       }
     },
@@ -398,35 +417,28 @@ document.addEventListener('alpine:init', () => {
     },
 
     async publishLeaf() {
-      const user = this.currentUser;
-      if (!user) return;
+      const current = this.currentUser;
+      if (!current) return;
 
       const text = this.leafText.trim();
       if (!text || text.length > this.characterLimit) return;
 
       if (supabaseClient) {
         try {
-          const { data: { user: activeUser }, error: userError } = await supabaseClient.auth.getUser();
-          if (userError || !activeUser) {
+          const { data: { user }, error: userErr } = await supabaseClient.auth.getUser();
+          if (userErr || !user) {
             this.errorMessage = 'You must be signed in to post.';
             return;
           }
 
-          const { error } = await supabaseClient.from('leafs').insert([
-            {
-              author_id: activeUser.id,
-              content: text,
-              hidden_by_staff: false
-            }
-          ]);
-
+          const { error } = await supabaseClient.from('leafs').insert([{ author_id: user.id, content: text, hidden_by_staff: false }]);
           if (error) throw error;
           this.leafText = '';
           this.errorMessage = '';
           await this.syncFeed();
           return;
         } catch (error) {
-          console.error('Leaf publish failed', error);
+          console.error('Leaf post failed', error);
           this.errorMessage = error?.message || 'Post failed.';
           return;
         }
@@ -434,8 +446,8 @@ document.addEventListener('alpine:init', () => {
 
       const newLeaf = {
         id: Date.now(),
-        username: user.username,
-        displayName: user.displayName || user.username,
+        username: current.username,
+        displayName: current.displayName || current.username,
         content: text,
         timestamp: 'Just now',
         likes: 0,
@@ -443,34 +455,28 @@ document.addEventListener('alpine:init', () => {
       };
 
       this.leafs = [newLeaf, ...this.leafs];
-      safeStorage.set('verdant_leafs', this.leafs);
+      setLocalFeed(this.leafs);
       this.leafText = '';
     },
 
     async toggleLike(leafId) {
       if (supabaseClient) {
         try {
-          const { data: { user } } = await supabaseClient.auth.getUser();
-          if (!user) {
+          const { data: { user }, error } = await supabaseClient.auth.getUser();
+          if (error || !user) {
             this.errorMessage = 'Sign in to like a leaf.';
             return;
           }
 
-          const { error } = await supabaseClient.from('leaf_likes').insert([
-            { leaf_id: leafId, user_id: user.id }
-          ]);
-
-          if (error) {
-            if (!String(error.message).toLowerCase().includes('duplicate')) {
-              throw error;
-            }
+          const { error: insertError } = await supabaseClient.from('leaf_likes').insert([{ leaf_id: leafId, user_id: user.id }]);
+          if (insertError && !String(insertError.message).toLowerCase().includes('duplicate')) {
+            throw insertError;
           }
-
           await this.syncFeed();
           return;
         } catch (error) {
           console.error('Like failed', error);
-          this.errorMessage = error?.message || 'Could not save your like.';
+          this.errorMessage = error?.message || 'Could not save the like.';
           return;
         }
       }
@@ -481,7 +487,7 @@ document.addEventListener('alpine:init', () => {
         }
         return leaf;
       });
-      safeStorage.set('verdant_leafs', this.leafs);
+      setLocalFeed(this.leafs);
     },
 
     async publishReply(leafId) {
@@ -490,13 +496,13 @@ document.addEventListener('alpine:init', () => {
 
       if (supabaseClient) {
         try {
-          const { data: { user } } = await supabaseClient.auth.getUser();
-          if (!user) {
+          const { data: { user }, error } = await supabaseClient.auth.getUser();
+          if (error || !user) {
             this.errorMessage = 'Sign in to reply.';
             return;
           }
 
-          const { error } = await supabaseClient.from('leafs').insert([
+          const { error: insertError } = await supabaseClient.from('leafs').insert([
             {
               author_id: user.id,
               parent_id: leafId,
@@ -505,7 +511,7 @@ document.addEventListener('alpine:init', () => {
             }
           ]);
 
-          if (error) throw error;
+          if (insertError) throw insertError;
           this.replyText = '';
           this.replyingTo = null;
           this.errorMessage = '';
@@ -513,7 +519,7 @@ document.addEventListener('alpine:init', () => {
           return;
         } catch (error) {
           console.error('Reply failed', error);
-          this.errorMessage = error?.message || 'Could not send the reply.';
+          this.errorMessage = error?.message || 'Could not send that reply.';
           return;
         }
       }
@@ -535,7 +541,7 @@ document.addEventListener('alpine:init', () => {
         };
       });
 
-      safeStorage.set('verdant_leafs', this.leafs);
+      setLocalFeed(this.leafs);
       this.replyText = '';
       this.replyingTo = null;
     }
@@ -544,7 +550,7 @@ document.addEventListener('alpine:init', () => {
   if (supabaseClient) {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        await this.hydrateFromSession(session.user);
+        await Alpine.store('verdantApp')?.hydrateUserFromSession?.(session.user);
       }
 
       if (event === 'SIGNED_OUT') {
@@ -555,8 +561,8 @@ document.addEventListener('alpine:init', () => {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const app = Alpine.store('verdantApp');
-        if (app && typeof app.hydrateFromSession === 'function') {
-          app.hydrateFromSession(session.user);
+        if (app && typeof app.hydrateUserFromSession === 'function') {
+          app.hydrateUserFromSession(session.user);
         }
       }
     }).catch((error) => {

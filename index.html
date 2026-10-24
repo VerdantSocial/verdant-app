@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Verdant</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.VERDANT_SUPABASE = {
+      url: "https://YOUR_PROJECT_ID.supabase.co",
+      anonKey: "YOUR_ANON_KEY",
+      siteUrl: window.location.origin
+    };
+  </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.4.1/dist/cdn.min.js"></script>
   <script defer src="app.js"></script>
   <style>
@@ -335,11 +343,11 @@
     <template x-if="step === 'signup'">
       <div class="signup-panel panel stack">
         <div>
-          <h2 style="margin:0 0 8px; font-size: clamp(1.6rem, 3vw, 2.4rem);">Create your account</h2>
-          <p style="margin:0; color: var(--muted);">Set up your profile and start posting.</p>
+          <h2 style="margin:0 0 8px; font-size: clamp(1.6rem, 3vw, 2.4rem);" x-text="authMode === 'login' ? 'Welcome back' : 'Create your account'"></h2>
+          <p style="margin:0; color: var(--muted);" x-text="authMode === 'login' ? 'Sign in to your Verdant account.' : 'Set up your profile and start posting.'"></p>
         </div>
 
-        <div class="field">
+        <div class="field" x-show="authMode !== 'login'">
           <label>Username</label>
           <input x-model="form.username" type="text" placeholder="yourname" />
         </div>
@@ -354,13 +362,27 @@
           <input x-model="form.password" type="password" placeholder="Choose a password" />
         </div>
 
+        <template x-if="authMode !== 'login'">
+          <div class="field">
+            <label>Bio</label>
+            <textarea x-model="form.bio" placeholder="Tell people a little about you..."></textarea>
+          </div>
+        </template>
+
+        <template x-if="authMode !== 'login'">
+          <div class="field">
+            <label>Profile picture URL</label>
+            <input x-model="form.pfpUrl" type="url" placeholder="https://example.com/avatar.jpg" />
+          </div>
+        </template>
+
         <template x-if="errorMessage">
           <div class="error" x-text="errorMessage"></div>
         </template>
 
         <div class="row">
-          <div></div>
-          <button class="primary" @click="createAccount()">Continue</button>
+          <button class="secondary" type="button" @click="authMode === 'login' ? setAuthMode('signup') : setAuthMode('login')" x-text="authMode === 'login' ? 'Need an account? Create one' : 'Already have an account? Log in'"></button>
+          <button class="primary" type="button" @click="createAccount()" x-text="authMode === 'login' ? 'Sign in' : 'Continue'"></button>
         </div>
       </div>
     </template>
